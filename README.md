@@ -59,3 +59,12 @@ cargo run -p qsb-did-resolver-cli -- \
 The resolver calls node JSON-RPC method:
 
 - `did_getByString`
+
+## DID validation behavior
+
+Resolver validates DID input before RPC call:
+
+- prefix must be `did:qsb:`
+- identifier part must be valid Base58
+- decoded identifier length must be exactly 32 bytes
+- invalid input returns DID Resolution error `invalidDid`

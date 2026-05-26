@@ -167,7 +167,7 @@ mod tests {
                 key_id: format!("{did}#update").into_bytes(),
                 multicodec: Some(0x1210),
                 public_key: vec![0x11; 1312],
-                roles: vec![RawKeyRole::Authentication, RawKeyRole::AssertionMethod],
+                roles: vec![RawKeyRole::CapabilityInvocation, RawKeyRole::AssertionMethod],
                 controller: None,
                 revoked: false,
             }],
