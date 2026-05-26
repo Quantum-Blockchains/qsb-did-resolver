@@ -68,3 +68,9 @@ Resolver validates DID input before RPC call:
 - identifier part must be valid Base58
 - decoded identifier length must be exactly 32 bytes
 - invalid input returns DID Resolution error `invalidDid`
+
+## Multikey / codec behavior
+
+- Resolver outputs verification methods as `type: "Multikey"`.
+- `publicKeyMultibase` is reconstructed from `multicodec + raw public_key` returned by chain state.
+- Resolver does not enforce codec allowlist itself; codec policy is enforced by runtime.
