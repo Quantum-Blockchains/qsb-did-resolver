@@ -1,12 +1,26 @@
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
-use crate::did::{RawDidDetails, RawKeyRole, RawVerificationMethodType};
+use crate::did::{RawDidDetails, RawKeyRole};
 use crate::document::{
     DidDocument, DidDocumentMetadata, DidResolutionMetadata, DidResolutionResult,
     DidVerificationMethod,
 };
 
 pub fn is_qsb_did(did: &str) -> bool {
-    did.starts_with("did:qsb:")
+    const PREFIX: &str = "did:qsb:";
+    if !did.starts_with(PREFIX) {
+        return false;
+    }
+    let id_part = &did[PREFIX.len()..];
+    if id_part.is_empty() {
+        return false;
+    }
+    if id_part.contains('#') || id_part.contains('?') || id_part.contains('/') {
+        return false;
+    }
+    match bs58::decode(id_part).into_vec() {
+        Ok(bytes) => bytes.len() == 32,
+        Err(_) => false,
+    }
 }
 
 fn encode_uvarint(mut value: u64) -> Vec<u8> {
@@ -47,28 +61,16 @@ pub fn map_raw_to_resolution(did: &str, details: RawDidDetails) -> DidResolution
     for key in details.keys.into_iter().filter(|k| !k.revoked) {
         let vm_id = key.key_id.clone();
         let controller = key.controller.clone().unwrap_or_else(|| did_bytes.clone());
-        let vm_type_label = match key.vm_type {
-            RawVerificationMethodType::Multikey => b"Multikey".to_vec(),
-            RawVerificationMethodType::JsonWebKey2020 => b"JsonWebKey2020".to_vec(),
-        };
-
-        let (public_key_multibase, public_key_jwk) = match key.vm_type {
-            RawVerificationMethodType::Multikey => {
-                (
-                    key.multicodec
-                        .map(|codec| multibase_from_public_key(&key.public_key, codec)),
-                    None,
-                )
-            }
-            RawVerificationMethodType::JsonWebKey2020 => (None, Some(key.public_key.clone())),
-        };
+        let vm_type_label = b"Multikey".to_vec();
+        let public_key_multibase = key
+            .multicodec
+            .map(|codec| multibase_from_public_key(&key.public_key, codec));
 
         verification_method.push(DidVerificationMethod {
             id: vm_id.clone(),
             vm_type: vm_type_label,
             controller,
             public_key_multibase,
-            public_key_jwk,
         });
 
         for role in key.roles {
@@ -87,7 +89,6 @@ pub fn map_raw_to_resolution(did: &str, details: RawDidDetails) -> DidResolution
             context: vec![
                 b"https://www.w3.org/ns/did/v1".to_vec(),
                 b"https://w3id.org/security/multikey/v1".to_vec(),
-                b"https://w3id.org/security/suites/jws-2020/v1".to_vec(),
             ],
             id: did_bytes,
             verification_method,
@@ -140,10 +141,20 @@ pub fn not_found_result() -> DidResolutionResult {
 #[cfg(test)]
 mod tests {
     use super::{invalid_did_result, map_raw_to_resolution, not_found_result};
-    use crate::did::{RawDidDetails, RawDidKey, RawKeyRole, RawVerificationMethodType, ServiceEndpoint};
+    use crate::did::{RawDidDetails, RawDidKey, RawKeyRole, ServiceEndpoint};
 
     fn sample_did() -> &'static str {
         "did:qsb:6QWeT6FpJrm8AF1btu6WH2k2Xhq6t5vbYf7uV5mG4NfN"
+    }
+
+    #[test]
+    fn validates_did_syntax_base58_and_32_bytes() {
+        assert!(super::is_qsb_did(sample_did()));
+        assert!(!super::is_qsb_did("did:qsb:"));
+        assert!(!super::is_qsb_did("did:qsb:not_base58_%%%"));
+        assert!(!super::is_qsb_did("did:qsb:6QWeT6FpJrm8AF1btu6WH2k2Xhq6t5vbYf7uV5mG4NfN#k1"));
+        assert!(!super::is_qsb_did("did:qsb:111111111111111111111111111111111"));
+        assert!(!super::is_qsb_did("did:other:6QWeT6FpJrm8AF1btu6WH2k2Xhq6t5vbYf7uV5mG4NfN"));
     }
 
     #[test]
@@ -154,7 +165,6 @@ mod tests {
             deactivated: false,
             keys: vec![RawDidKey {
                 key_id: format!("{did}#update").into_bytes(),
-                vm_type: RawVerificationMethodType::Multikey,
                 multicodec: Some(0x1210),
                 public_key: vec![0x11; 1312],
                 roles: vec![RawKeyRole::Authentication, RawKeyRole::AssertionMethod],

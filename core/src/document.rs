@@ -8,8 +8,6 @@ pub struct DidVerificationMethod {
     pub controller: Vec<u8>,
     #[serde(rename = "publicKeyMultibase")]
     pub public_key_multibase: Option<Vec<u8>>,
-    #[serde(rename = "publicKeyJwk")]
-    pub public_key_jwk: Option<Vec<u8>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

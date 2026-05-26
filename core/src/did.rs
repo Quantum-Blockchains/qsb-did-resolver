@@ -3,18 +3,11 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RawDidKey {
     pub key_id: Vec<u8>,
-    pub vm_type: RawVerificationMethodType,
     pub multicodec: Option<u64>,
     pub public_key: Vec<u8>,
     pub roles: Vec<RawKeyRole>,
     pub controller: Option<Vec<u8>>,
     pub revoked: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum RawVerificationMethodType {
-    Multikey,
-    JsonWebKey2020,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
